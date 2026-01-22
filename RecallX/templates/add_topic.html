@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Topic - RecallX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>RecallX</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/dashboard">Dashboard</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container form-container">
+        <div class="form-wrapper">
+            <h2>Create New Topic</h2>
+            <p class="form-subtitle">Add a topic and let RecallX search the internet for exam-relevant questions</p>
+
+            <form id="addTopicForm" class="form">
+                <div class="form-group">
+                    <label for="subject">Subject *</label>
+                    <input type="text" id="subject" name="subject" placeholder="e.g., Computer Science, Biology" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="topic_name">Topic Name *</label>
+                    <input type="text" id="topic_name" name="topic_name" placeholder="e.g., Binary Trees, Photosynthesis" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam_type">Exam Type *</label>
+                    <select id="exam_type" name="exam_type" required>
+                        <option value="">Select exam type</option>
+                        <option value="semester">Semester Exam</option>
+                        <option value="competitive">Competitive Exam (JEE, GATE, etc.)</option>
+                        <option value="interview">Interview (Technical, Viva)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description (Optional)</label>
+                    <textarea id="description" name="description" placeholder="Add any specific details or focus areas..." rows="4"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-large">Create Topic & Search Internet</button>
+            </form>
+
+            <div id="loadingMessage" class="loading-message" style="display: none;">
+                <div class="spinner"></div>
+                <p>Searching internet for exam questions... This may take a moment.</p>
+            </div>
+
+            <div id="successMessage" class="success-message" style="display: none;">
+                <h3>✅ Topic Created Successfully!</h3>
+                <p id="successText"></p>
+                <div class="success-actions">
+                    <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+                    <a href="/upload" class="btn btn-secondary">Upload PDF (Optional)</a>
+                </div>
+            </div>
+
+            <div id="errorMessage" class="error-message" style="display: none;">
+                <h3>❌ Error</h3>
+                <p id="errorText"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
+</body>
+</html>

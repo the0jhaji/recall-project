@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stress Recall Test - RecallX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="stress-test-mode">
+    <!-- Stress Test Container -->
+    <div class="stress-test-container">
+        <!-- Timer -->
+        <div class="stress-timer">
+            <div class="timer-display">
+                <span id="timerValue">5:00</span>
+            </div>
+            <p class="timer-label">REMAINING</p>
+        </div>
+
+        <!-- Stress Level Indicator -->
+        <div class="stress-indicator">
+            <div class="stress-bar" id="stressBar"></div>
+            <p id="stressLabel">Stress Level: MEDIUM</p>
+        </div>
+
+        <!-- Question Display -->
+        <div class="question-display" id="questionDisplay">
+            <div class="loading-message">
+                <div class="spinner"></div>
+                <p>Loading questions...</p>
+            </div>
+        </div>
+
+        <!-- Question Navigation -->
+        <div class="question-counter" id="questionCounter">
+            Question 1 / 10
+        </div>
+
+        <!-- Results Panel (Hidden initially) -->
+        <div class="results-panel" id="resultsPanel" style="display: none;">
+            <h2>Test Complete!</h2>
+            <div class="results-stats">
+                <div class="stat">
+                    <div class="stat-value" id="accuracyValue">0%</div>
+                    <div class="stat-label">Accuracy</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="timeValue">0s</div>
+                    <div class="stat-label">Avg Response Time</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="confidenceValue">0%</div>
+                    <div class="stat-label">Avg Confidence</div>
+                </div>
+            </div>
+            <div class="results-actions">
+                <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+                <button onclick="location.reload()" class="btn btn-secondary">Try Again</button>
+            </div>
+        </div>
+
+        <!-- Exit Button -->
+        <button class="exit-button" onclick="exitTest()">✕ Exit</button>
+    </div>
+
+    <!-- Audio for stress effects (optional) -->
+    <audio id="tickSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==" type="audio/wav">
+    </audio>
+
+    <script src="{{ url_for('static', filename='js/stress.js') }}"></script>
+</body>
+</html>

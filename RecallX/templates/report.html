@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Report - RecallX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>RecallX</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/dashboard">Dashboard</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container report-container">
+        <h2>Performance & Readiness Report</h2>
+
+        <!-- Readiness Score Card -->
+        <div class="readiness-card" id="readinessCard">
+            <div class="readiness-score">
+                <div class="score-circle" id="scoreCircle">
+                    <span id="readinessScore">--</span>
+                </div>
+                <div class="score-info">
+                    <h3>Exam Readiness</h3>
+                    <p id="readinessStatus">Calculating...</p>
+                </div>
+            </div>
+            <div class="score-details">
+                <div class="detail">
+                    <span class="label">Overall Accuracy:</span>
+                    <span class="value" id="overallAccuracy">--</span>
+                </div>
+                <div class="detail">
+                    <span class="label">Avg Strength:</span>
+                    <span class="value" id="avgStrength">--</span>
+                </div>
+                <div class="detail">
+                    <span class="label">Topics Covered:</span>
+                    <span class="value" id="topicsCovered">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Topics Performance Table -->
+        <div class="topics-report">
+            <h3>Topic-wise Analysis</h3>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Topic</th>
+                        <th>Subject</th>
+                        <th>Exam Type</th>
+                        <th>Strength</th>
+                        <th>Accuracy</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="topicsTableBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center;">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Alerts Section -->
+        <div class="alerts-report" id="alertsSection" style="display: none;">
+            <h3>⚠️ Areas Needing Attention</h3>
+            <div id="alertsContainer"></div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="recommendations">
+            <h3>📋 Recommendations</h3>
+            <ul id="recommendationsList">
+                <li>Loading recommendations...</li>
+            </ul>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="report-actions">
+            <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+            <button onclick="downloadReport()" class="btn btn-secondary">📥 Download Report</button>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingReport" class="loading-message">
+            <div class="spinner"></div>
+            <p>Generating your report...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadReport();
+        });
+
+        function loadReport() {
+            fetch('/api/report')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayReport(data.report);
+                        document.getElementById('loadingReport').style.display = 'none';
+                    } else {
+                        showError(data.error || 'Failed to load report');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('Error loading report: ' + error.message);
+                });
+        }
+
+        function displayReport(report) {
+            // Update readiness score
+            const score = report.readiness_score;
+            document.getElementById('readinessScore').textContent = Math.round(score);
+            document.getElementById('readinessStatus').textContent = report.readiness_status;
+            document.getElementById('overallAccuracy').textContent = report.average_accuracy.toFixed(1) + '%';
+            document.getElementById('avgStrength').textContent = report.total_strength.toFixed(2);
+            document.getElementById('topicsCovered').textContent = report.total_topics;
+
+            // Color the readiness circle based on score
+            const circle = document.getElementById('scoreCircle');
+            if (score >= 75) {
+                circle.style.borderColor = '#4CAF50';
+            } else if (score >= 50) {
+                circle.style.borderColor = '#FFC107';
+            } else {
+                circle.style.borderColor = '#F44336';
+            }
+
+            // Populate topics table
+            const tbody = document.getElementById('topicsTableBody');
+            tbody.innerHTML = '';
+            
+            if (report.topics.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No topics yet. Start by adding topics to get insights.</td></tr>';
+            } else {
+                report.topics.forEach(topic => {
+                    const row = document.createElement('tr');
+                    const statusClass = topic.retention >= 70 ? 'status-good' : topic.retention >= 40 ? 'status-medium' : 'status-poor';
+                    row.innerHTML = `
+                        <td><strong>${topic.topic_name}</strong></td>
+                        <td>${topic.subject}</td>
+                        <td>${topic.exam_type}</td>
+                        <td>${topic.strength.toFixed(2)}</td>
+                        <td>${topic.accuracy.toFixed(1)}%</td>
+                        <td><span class="status ${statusClass}">${topic.retention.toFixed(0)}% Retention</span></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            // Display alerts
+            if (report.alerts.length > 0) {
+                document.getElementById('alertsSection').style.display = 'block';
+                const alertsContainer = document.getElementById('alertsContainer');
+                alertsContainer.innerHTML = report.alerts.map(alert => `
+                    <div class="alert-item">
+                        <strong>${alert.topic}:</strong> ${alert.message}
+                        <br><small>${alert.action}</small>
+                    </div>
+                `).join('');
+            }
+
+            // Display recommendations
+            const recommendations = generateRecommendations(report);
+            document.getElementById('recommendationsList').innerHTML = recommendations
+                .map(rec => `<li>${rec}</li>`)
+                .join('');
+        }
+
+        function generateRecommendations(report) {
+            const recs = [];
+            
+            if (report.readiness_score < 50) {
+                recs.push('Your readiness score is below 50. Focus on stress tests to improve recall under pressure.');
+            }
+            
+            if (report.average_accuracy < 60) {
+                recs.push('Your overall accuracy is low. Review the weak topics and try more practice questions.');
+            }
+            
+            // Find weak topics
+            const weakTopics = report.topics.filter(t => t.retention < 40);
+            if (weakTopics.length > 0) {
+                recs.push(`Priority: Revise ${weakTopics.map(t => t.topic_name).join(', ')} immediately - retention below 40%.`);
+            }
+            
+            if (report.total_topics < 3) {
+                recs.push('Add more topics to get comprehensive exam preparation.');
+            }
+            
+            if (report.readiness_score >= 75) {
+                recs.push('Great job! You\'re ready for the exam. Focus on maintaining your strong areas.');
+            }
+            
+            if (recs.length === 0) {
+                recs.push('Keep practicing consistently. Regular stress tests help combat memory fade.');
+            }
+            
+            return recs;
+        }
+
+        function downloadReport() {
+            alert('Report download feature coming soon!');
+        }
+
+        function showError(message) {
+            document.getElementById('loadingReport').innerHTML = `<div class="error">${message}</div>`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgetting Curve - RecallX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>RecallX</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/dashboard">Dashboard</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container forgetting-curve-container">
+        <div class="curve-header">
+            <h2>Ebbinghaus Forgetting Curve</h2>
+            <p class="topic-title" id="topicName">Loading...</p>
+            <p class="curve-description">Your memory retention over time. Red zones indicate high forgetting risk.</p>
+        </div>
+
+        <div class="curve-content">
+            <!-- Chart -->
+            <div class="chart-wrapper">
+                <canvas id="forgettingCurveChart"></canvas>
+                <div id="loadingChart" class="loading-chart">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="curve-legend">
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #4CAF50;"></span>
+                    <span>Safe Zone (>70% retention)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #FFC107;"></span>
+                    <span>Caution Zone (40-70% retention)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #F44336;"></span>
+                    <span>Danger Zone (<40% retention)</span>
+                </div>
+            </div>
+
+            <!-- Optimal Revision Dates -->
+            <div class="optimal-dates">
+                <h3>📅 Optimal Revision Schedule</h3>
+                <div class="dates-grid">
+                    <div id="optimalDatesContainer">
+                        Loading...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights -->
+            <div class="insights-box">
+                <h3>💡 Key Insights</h3>
+                <ul>
+                    <li><strong>Ebbinghaus Forgetting Curve:</strong> Shows how quickly you forget information after learning</li>
+                    <li><strong>Spaced Repetition:</strong> Revise at optimal times to fight the curve and move information to long-term memory</li>
+                    <li><strong>Your Strength:</strong> <span id="strengthValue">Loading...</span> - Higher strength means better retention</li>
+                    <li><strong>Next Action:</strong> <span id="nextAction">Loading...</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <a href="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+            <a href="#" id="stressTestBtn" class="btn btn-primary">→ Start Stress Test</a>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+</body>
+</html>

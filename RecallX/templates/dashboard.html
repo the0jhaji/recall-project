@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - RecallX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>RecallX</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/add-topic" class="btn btn-primary">+ Add Topic</a></li>
+                <li><a href="/report" class="btn btn-secondary">Report</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container dashboard-container">
+        <h2>📌 Forgettable Topics Ranking</h2>
+        <p class="subtitle">Topics ranked by their likelihood to be forgotten (Forgettable Topic Index)</p>
+
+        <!-- Alerts Section -->
+        {% if alerts %}
+        <div class="alerts-section">
+            <h3>⚠️ Critical Alerts</h3>
+            {% for alert in alerts %}
+            <div class="alert alert-{{ alert.severity }}">
+                <strong>{{ alert.topic }}</strong>: {{ alert.message }}
+                {% if alert.fti_score %}<span class="fti-badge">FTI: {{ "%.1f"|format(alert.fti_score) }}/10</span>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Topics by Category -->
+        {% if topics %}
+        <div class="fti-categories">
+            <!-- HIGH FORGETTABILITY -->
+            {% set high_topics = topics | selectattr('fti_category', 'equalto', 'high') | list %}
+            {% if high_topics %}
+            <div class="fti-category-section">
+                <h3 class="category-title high">🔴 HIGH FORGETTABILITY - Focus Here!</h3>
+                <p class="category-description">These topics are likely to be forgotten. Intensive stress training needed.</p>
+                <div class="topics-grid">
+                    {% for topic in high_topics %}
+                    <div class="topic-card fti-high">
+                        <div class="fti-indicator high">{{ "%.1f"|format(topic.fti_score) }}/10</div>
+                        <div class="topic-header">
+                            <h3>{{ topic.topic_name }}</h3>
+                            <span class="topic-badge">{{ topic.exam_type }}</span>
+                        </div>
+                        <p class="topic-subject">{{ topic.subject }}</p>
+                        
+                        <div class="fti-components">
+                            <div class="fti-component">
+                                <span class="label">Complexity:</span>
+                                <div class="mini-bar"><div class="mini-fill" style="width: {{ (topic.topic_complexity / 10) * 100 }}%"></div></div>
+                            </div>
+                            <div class="fti-component">
+                                <span class="label">Length:</span>
+                                <div class="mini-bar"><div class="mini-fill" style="width: {{ (topic.topic_length / 10) * 100 }}%"></div></div>
+                            </div>
+                            <div class="fti-component">
+                                <span class="label">Exam Freq:</span>
+                                <div class="mini-bar"><div class="mini-fill" style="width: {{ (topic.exam_frequency / 10) * 100 }}%"></div></div>
+                            </div>
+                        </div>
+                        
+                        <div class="topic-actions">
+                            <a href="/stress-test/{{ topic.id }}" class="btn btn-small btn-primary">🧠 Stress Test</a>
+                            <a href="/forgetting-curve/{{ topic.id }}" class="btn btn-small btn-secondary">📊 Curve</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- MODERATE FORGETTABILITY -->
+            {% set moderate_topics = topics | selectattr('fti_category', 'equalto', 'moderate') | list %}
+            {% if moderate_topics %}
+            <div class="fti-category-section">
+                <h3 class="category-title moderate">🟡 MODERATE FORGETTABILITY - Regular Practice</h3>
+                <p class="category-description">These topics need regular revision and practice.</p>
+                <div class="topics-grid">
+                    {% for topic in moderate_topics %}
+                    <div class="topic-card fti-moderate">
+                        <div class="fti-indicator moderate">{{ "%.1f"|format(topic.fti_score) }}/10</div>
+                        <div class="topic-header">
+                            <h3>{{ topic.topic_name }}</h3>
+                            <span class="topic-badge">{{ topic.exam_type }}</span>
+                        </div>
+                        <p class="topic-subject">{{ topic.subject }}</p>
+                        
+                        <div class="fti-components">
+                            <div class="fti-component">
+                                <span class="label">Complexity:</span>
+                                <div class="mini-bar"><div class="mini-fill" style="width: {{ (topic.topic_complexity / 10) * 100 }}%"></div></div>
+                            </div>
+                            <div class="fti-component">
+                                <span class="label">Length:</span>
+                                <div class="mini-bar"><div class="mini-fill" style="width: {{ (topic.topic_length / 10) * 100 }}%"></div></div>
+                            </div>
+                        </div>
+                        
+                        <div class="topic-actions">
+                            <a href="/stress-test/{{ topic.id }}" class="btn btn-small btn-secondary">🧠 Practice</a>
+                            <a href="/forgetting-curve/{{ topic.id }}" class="btn btn-small btn-secondary">📊 Curve</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- SAFE TOPICS -->
+            {% set safe_topics = topics | selectattr('fti_category', 'equalto', 'safe') | list %}
+            {% if safe_topics %}
+            <div class="fti-category-section">
+                <h3 class="category-title safe">🟢 SAFE TOPICS - Maintain Knowledge</h3>
+                <p class="category-description">You have strong recall ability on these. Just maintain it.</p>
+                <div class="topics-grid">
+                    {% for topic in safe_topics %}
+                    <div class="topic-card fti-safe">
+                        <div class="fti-indicator safe">{{ "%.1f"|format(topic.fti_score) }}/10</div>
+                        <div class="topic-header">
+                            <h3>{{ topic.topic_name }}</h3>
+                            <span class="topic-badge">{{ topic.exam_type }}</span>
+                        </div>
+                        <p class="topic-subject">{{ topic.subject }}</p>
+                        
+                        <div class="topic-actions">
+                            <a href="/stress-test/{{ topic.id }}" class="btn btn-small btn-secondary">🧠 Review</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <h3>No topics yet</h3>
+            <p>Start by adding your first topic to get personalized forgettability rankings</p>
+            <a href="/add-topic" class="btn btn-primary">Add Your First Topic</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

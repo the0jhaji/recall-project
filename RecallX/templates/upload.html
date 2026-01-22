@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload PDF - RecallX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>RecallX</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/dashboard">Dashboard</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container form-container">
+        <div class="form-wrapper">
+            <h2>Upload Syllabus or Notes (Optional)</h2>
+            <p class="form-subtitle">Extract key concepts from your PDFs and merge with AI research</p>
+
+            <form id="uploadPdfForm" class="form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="topic_id">Select Topic *</label>
+                    <select id="topic_id" name="topic_id" required>
+                        <option value="">Loading topics...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="pdf_file">PDF File *</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="pdf_file" name="file" accept=".pdf" required>
+                        <span class="file-input-label">Choose PDF file...</span>
+                    </div>
+                    <small>Max 10MB. Format: PDF only</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-large">Upload & Extract Content</button>
+            </form>
+
+            <div id="loadingMessage" class="loading-message" style="display: none;">
+                <div class="spinner"></div>
+                <p>Processing PDF...</p>
+            </div>
+
+            <div id="successMessage" class="success-message" style="display: none;">
+                <h3>✅ PDF Uploaded Successfully!</h3>
+                <p>Content extracted and merged with internet research.</p>
+                <div class="success-actions">
+                    <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+                </div>
+            </div>
+
+            <div id="errorMessage" class="error-message" style="display: none;">
+                <h3>❌ Error</h3>
+                <p id="errorText"></p>
+            </div>
+
+            <div class="info-box">
+                <h3>Why upload PDFs?</h3>
+                <ul>
+                    <li>Automatic concept extraction from syllabus</li>
+                    <li>Merge with AI research for complete coverage</li>
+                    <li>Better question generation based on your specific materials</li>
+                    <li>Ensures topics from your course are covered</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
+    <script>
+        // Load topics on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTopics();
+        });
+
+        function loadTopics() {
+            fetch('/api/topics')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('topic_id');
+                    select.innerHTML = '<option value="">Select a topic</option>';
+                    
+                    if (data.success && data.topics.length > 0) {
+                        data.topics.forEach(topic => {
+                            const option = document.createElement('option');
+                            option.value = topic.id;
+                            option.textContent = `${topic.topic_name} (${topic.subject})`;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        select.innerHTML = '<option value="">No topics found. Create one first.</option>';
+                    }
+                })
+                .catch(error => console.error('Error loading topics:', error));
+        }
+
+        // Handle file input
+        document.getElementById('pdf_file').addEventListener('change', function(e) {
+            const label = this.parentElement.querySelector('.file-input-label');
+            label.textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Choose PDF file...';
+        });
+
+        // Handle form submission
+        document.getElementById('uploadPdfForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const topic_id = document.getElementById('topic_id').value;
+            const file = document.getElementById('pdf_file').files[0];
+            
+            if (!topic_id || !file) {
+                showError('Please select a topic and PDF file');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('topic_id', topic_id);
+            formData.append('file', file);
+            
+            showLoading();
+            
+            fetch('/api/upload-pdf', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('PDF uploaded and content extracted!');
+                } else {
+                    showError(data.error || 'Failed to upload PDF');
+                }
+            })
+            .catch(error => {
+                showError('Error uploading PDF: ' + error.message);
+            });
+        });
+
+        function showLoading() {
+            document.getElementById('loadingMessage').style.display = 'block';
+            document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('errorText').textContent = message;
+        }
+    </script>
+</body>
+</html>
