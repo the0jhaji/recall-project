@@ -133,6 +133,17 @@ p {
     box-shadow: var(--shadow-lg);
 }
 
+.btn-outline {
+    background: white;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+}
+
+.btn-outline:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
 .btn-secondary {
     background: white;
     color: var(--primary-color);

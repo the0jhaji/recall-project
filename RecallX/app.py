@@ -3,8 +3,10 @@ RecallX - AI Memory Recall Assistant for Exams & Interviews
 A hackathon-winning application using spaced repetition, forgetting curves, and stress-based recall testing.
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import json
 import math
@@ -16,21 +18,36 @@ from functools import wraps
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'recall-secret-key-change-in-production')
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
 
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
 # ==================== DATABASE MODELS ====================
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     """User model for storing user information"""
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     topics = db.relationship('Topic', backref='user', lazy=True, cascade='all, delete-orphan')
     recall_history = db.relationship('RecallHistory', backref='user', lazy=True, cascade='all, delete-orphan')
+    
+    def set_password(self, password):
+        """Hash and set password"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Check if provided password matches hash"""
+        return check_password_hash(self.password_hash, password)
 
 
 class Topic(db.Model):
@@ -342,6 +359,95 @@ def update_topic_fti(topic):
     return fti_score, category
 
 
+# ==================== FLASK-LOGIN SETUP ====================
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user from database"""
+    return User.query.get(int(user_id))
+
+
+# ==================== AUTHENTICATION ROUTES ====================
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """User registration"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # Validation
+        if not username or not email or not password:
+            flash('All fields are required', 'error')
+            return redirect(url_for('register'))
+        
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return redirect(url_for('register'))
+        
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long', 'error')
+            return redirect(url_for('register'))
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists', 'error')
+            return redirect(url_for('register'))
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered', 'error')
+            return redirect(url_for('register'))
+        
+        # Create user
+        user = User(username=username, email=email)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        
+        flash('Account created successfully! Please log in.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('register.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """User login"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        remember = request.form.get('remember', False)
+        
+        if not username or not password:
+            flash('Username and password are required', 'error')
+            return redirect(url_for('login'))
+        
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user, remember=bool(remember))
+            flash(f'Welcome back, {user.username}!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid username or password', 'error')
+            return redirect(url_for('login'))
+    
+    return render_template('login.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    """User logout"""
+    logout_user()
+    flash('You have been logged out successfully', 'success')
+    return redirect(url_for('index'))
+
+
 # ==================== ROUTES ====================
 
 @app.route('/')
@@ -351,9 +457,10 @@ def index():
 
 
 @app.route('/dashboard')
+@login_required
 def dashboard():
     """Dashboard showing topics ranked by Forgettable Topic Index"""
-    user = get_or_create_default_user()
+    user = current_user
     topics = Topic.query.filter_by(user_id=user.id).all()
     
     # Update FTI scores for all topics
@@ -387,36 +494,41 @@ def dashboard():
 
 
 @app.route('/add-topic')
+@login_required
 def add_topic_page():
     """Add topic page"""
     return render_template('add_topic.html')
 
 
 @app.route('/upload')
+@login_required
 def upload_page():
     """PDF upload page"""
     return render_template('upload.html')
 
 
 @app.route('/forgetting-curve/<int:topic_id>')
+@login_required
 def forgetting_curve_page(topic_id):
     """Forgetting curve visualization page"""
     topic = Topic.query.get(topic_id)
-    if not topic:
-        return "Topic not found", 404
+    if not topic or topic.user_id != current_user.id:
+        return "Unauthorized", 403
     return render_template('forgetting_curve.html', topic=topic)
 
 
 @app.route('/stress-test/<int:topic_id>')
+@login_required
 def stress_test_page(topic_id):
     """Stress recall test page"""
     topic = Topic.query.get(topic_id)
-    if not topic:
-        return "Topic not found", 404
+    if not topic or topic.user_id != current_user.id:
+        return "Unauthorized", 403
     return render_template('stress_test.html', topic=topic)
 
 
 @app.route('/report')
+@login_required
 def report_page():
     """Performance report page"""
     return render_template('report.html')
@@ -425,10 +537,11 @@ def report_page():
 # ==================== API ENDPOINTS ====================
 
 @app.route('/api/add-topic', methods=['POST'])
+@login_required
 def api_add_topic():
     """API: Add a new topic"""
     try:
-        user = get_or_create_default_user()
+        user = current_user
         data = request.json
         
         topic = Topic(
@@ -455,16 +568,17 @@ def api_add_topic():
 
 
 @app.route('/api/search-topic', methods=['POST'])
+@login_required
 def api_search_topic():
     """API: Search for topic information on the internet"""
     try:
-        user = get_or_create_default_user()
+        user = current_user
         data = request.json
         topic_id = data.get('topic_id')
         search_query = data.get('search_query', data.get('topic_name', ''))
         
         topic = Topic.query.get(topic_id)
-        if not topic:
+        if not topic or topic.user_id != current_user.id:
             return jsonify({'success': False, 'error': 'Topic not found'}), 404
         
         # Mock internet search
@@ -506,6 +620,7 @@ def api_search_topic():
 
 
 @app.route('/api/upload-pdf', methods=['POST'])
+@login_required
 def api_upload_pdf():
     """API: Upload and parse PDF"""
     try:
@@ -546,11 +661,12 @@ def api_upload_pdf():
 
 
 @app.route('/api/generate-questions/<int:topic_id>', methods=['GET'])
+@login_required
 def api_generate_questions(topic_id):
     """API: Generate questions for a topic"""
     try:
         topic = Topic.query.get(topic_id)
-        if not topic:
+        if not topic or topic.user_id != current_user.id:
             return jsonify({'success': False, 'error': 'Topic not found'}), 404
         
         # Get existing or generate new questions
@@ -590,11 +706,12 @@ def api_generate_questions(topic_id):
 
 
 @app.route('/api/forgetting-curve/<int:topic_id>', methods=['GET'])
+@login_required
 def api_forgetting_curve(topic_id):
     """API: Get forgetting curve data for visualization"""
     try:
         topic = Topic.query.get(topic_id)
-        if not topic:
+        if not topic or topic.user_id != current_user.id:
             return jsonify({'success': False, 'error': 'Topic not found'}), 404
         
         # Generate curve data for next 30 days
@@ -629,10 +746,11 @@ def api_forgetting_curve(topic_id):
 
 
 @app.route('/api/stress-test', methods=['POST'])
+@login_required
 def api_stress_test():
     """API: Submit stress test results"""
     try:
-        user = get_or_create_default_user()
+        user = current_user
         data = request.json
         
         question_id = data.get('question_id')
@@ -680,6 +798,7 @@ def api_stress_test():
 
 
 @app.route('/api/report', methods=['GET'])
+@login_required
 def api_report():
     """API: Get comprehensive performance report"""
     try:
@@ -750,6 +869,7 @@ def api_report():
 
 
 @app.route('/api/topics', methods=['GET'])
+@login_required
 def api_get_topics():
     """API: Get all topics for current user"""
     try:
@@ -776,6 +896,7 @@ def api_get_topics():
 
 
 @app.route('/api/forgettable-topics', methods=['GET'])
+@login_required
 def api_get_forgettable_topics():
     """API: Get topics ranked by Forgettable Topic Index (FTI)"""
     try:
@@ -834,8 +955,9 @@ def init_database():
         # Check if sample data exists
         user = User.query.filter_by(username='demo_user').first()
         if not user:
-            # Create demo user
+            # Create demo user with password
             user = User(username='demo_user', email='demo@recallx.app')
+            user.set_password('demo_password_123')  # Hash the password
             db.session.add(user)
             db.session.commit()
             
